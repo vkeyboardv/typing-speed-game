@@ -11,6 +11,8 @@ const config = require('config');
 const cors = require('cors');
 const morgan = require('morgan');
 const users = require('./users');
+const Commentator = require('./bot/commentator');
+
 
 // ROUTES
 const indexRouter = require('./routes/index.js');
@@ -42,12 +44,16 @@ let gameTimer = null;
 let timer = 0;
 let activeGame = 0;
 
-function getRandomText() {
-  return fs.readJson('./data/data.json')
-    .then(textArray => {
-      const rIndex = Math.floor(Math.random() * textArray.length);
-      return textArray[rIndex];
-    })
+async function getRandomText() {
+  const textArray = await fs.readJson('./data/data.json');
+  const rIndex = Math.floor(Math.random() * textArray.length);
+  return textArray[rIndex];
+}
+
+async function getCommentatorName() {
+  const commentatorNames = await fs.readJson('./data/commentator-names.json');
+  const cIndex = Math.floor(Math.random() * commentatorNames.length);
+  return commentatorNames[cIndex];
 }
 
 const broadcastActivePlayers = (message, data) => {
@@ -59,7 +65,8 @@ const broadcastActivePlayers = (message, data) => {
 
 async function startGame(players) {
   activeGame++;
-  const roomName = `game${activeGame}`;
+  const roomName = `gameRoom-${activeGame}`;
+  const loginsInRoom = [];
   const text = await getRandomText();
   const table = players.reduce((prev, player) => {
     return {
@@ -69,19 +76,67 @@ async function startGame(players) {
   }, {});
 
   players.forEach(({ socket }) => {
+    loginsInRoom.push(socket.userData.login);
     socket.join(roomName);
     socket.room = roomName;
   });
 
   io.to(roomName).emit('text', text);
 
+  //// COMMENTATOR INSTANCE
+  const generatedCommentatorName = await getCommentatorName();
+  const commentator = new Commentator({ generatedCommentatorName, roomName, loginsInRoom });
+
+  //// ENABLE MICROPHONE
+  const commentatorEnableMic = commentator.enableMic();
+  io.to(roomName).emit('commentatorEnableMic', { commentatorEnableMic });
+
+  //// GREETING
+  setTimeout(() => {
+    const commentatorGreeting = commentator.sayHi();
+    io.to(roomName).emit('commentatorGreeting', { commentatorGreeting });
+  }, 2000);
+
+  //// INDENTIFY PLAYERS AND CARS
+  setTimeout(() => {
+    const commentatorIntroduce = commentator.introducePlayers();
+    io.to(roomName).emit('commentatorIntroduce', { commentatorIntroduce });
+  }, 5000);
+
+  /// JOKING EVERY 10 SECS
+  setInterval(() => {
+    let commentatorsJoke = commentator.sayJoke();
+    io.to(roomName).emit('commentatorsJoke', { commentatorsJoke });
+  }, 10000);
+
   players.forEach(({ socket }) => {
     socket.on('symbolsEntered', (symbols) => {
       table[socket.userData.login] = symbols;
       io.to(roomName).emit('someoneEntered', { table });
+      const symbolsLeft = text.length - symbols;
 
+      // COMMENTATOR ALERT - 30 SYMBOLS LEFT FOR ONE OF RACERS
+      if (symbolsLeft === 30) {
+        const commentatorAlert = commentator.sayAlert(socket.userData.login, symbolsLeft);
+        io.to(roomName).emit('commentatorAlert', { commentatorAlert });
+      }
+
+      // COMMENTATOR INFO
+      setInterval(() => {
+        const leader = Object.keys(table).reduce((a, b) => table[a] > table[b] ? a : b);
+        const looser = Object.keys(table).reduce((a, b) => table[a] < table[b] ? a : b);
+        const symbolsLeftForLeader = text.length - table[leader];
+        const symbolsLeftForLooser = text.length - table[looser];
+        const diff = symbolsLeftForLooser - symbolsLeftForLeader;
+        let commentatorInfo = commentator.sayInfo(leader, symbolsLeftForLeader, looser, symbolsLeftForLooser, diff);
+        io.to(roomName).emit('commentatorInfo', { commentatorInfo });
+      }, 30000);
+
+      // COMMENTATOR FINISH
       if (symbols === text.length) {
-        io.to(roomName).emit('finish', { table, winner: socket.userData.login });
+        const tableSorted = Object.keys(table).sort((a, b) => table[a] - table[b]);
+        const commentatorFinish = commentator.sayFinish(table, tableSorted);
+        io.to(roomName).emit('commentatorFinish', { commentatorFinish });
 
         players.forEach(({ socket }) => {
           socket.leave(roomName);

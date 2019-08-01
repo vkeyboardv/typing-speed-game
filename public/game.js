@@ -36,8 +36,10 @@ window.onload = () => {
 
       const scoreboard = document.querySelector('#results-table');
       const timerToStart = document.querySelector('#timer-to-start');
+      const commentator = document.querySelector('#commentator');
       scoreboard.style.display = 'block';
       timerToStart.style.display = 'none';
+      commentator.style.display = 'flex';
       $('#header').html('Game');
 
       window.addEventListener('keypress', keyPressListener);
@@ -74,9 +76,7 @@ window.onload = () => {
           && arraySpans[arraySpans.length - 1].classList.contains('span-correct')) {
           window.removeEventListener('keypress', keyPressListener);
           window.removeEventListener('keydown', keyDownListener);
-          console.log('Game over');
-          const winner = document.querySelector('#winner');
-          winner.style.display = 'block';
+          console.log('[FRONTEND]: Game over');
         }
 
         const correctCounter = counter - wrongCounter; // counter of correct symbols
@@ -131,25 +131,48 @@ window.onload = () => {
       return null;
     }
 
-    socket.on('someoneEntered', function ({ table }) { // украсить результаты
+    socket.on('someoneEntered', function ({ table }) {
       const players = Object.keys(table);
       const tableText = players.map(player => `<tr><td id="${player}">${player}</td><td>${table[player]}</td></tr>`).join('');
       $('#table').html(tableText);
 
     });
 
-    socket.on('finish', function ({ winner }) {
-      $('#winner-name').html(winner);
+    // COMMENTATOR MESSAGES
+    socket.on('commentatorEnableMic', function ({ commentatorEnableMic }) {
+      $('#phrase').html('<i>' + commentatorEnableMic + '</i>');
     });
+
+    socket.on('commentatorGreeting', function ({ commentatorGreeting }) {
+      $('#phrase').html(commentatorGreeting);
+    });
+
+    socket.on('commentatorIntroduce', function ({ commentatorIntroduce }) {
+      $('#phrase').html(commentatorIntroduce);
+    });
+
+    socket.on('commentatorsJoke', function ({ commentatorsJoke }) {
+      $('#phrase').html(commentatorsJoke);
+    });
+
+    socket.on('commentatorAlert', function ({ commentatorAlert }) {
+      $('#phrase').html(commentatorAlert);
+    });
+
+    socket.on('commentatorInfo', function ({ commentatorInfo }) {
+      $('#phrase').html(commentatorInfo);
+    });
+
+    socket.on('commentatorFinish', function ({ commentatorFinish }) {
+      $('#phrase').html('<b>' + commentatorFinish + '</b>');
+    });
+
+    /////
 
     socket.on('player:disconnect', function ({ login }) {
       const player = document.querySelector(`#${login}`);
       player.classList.add('disconnected');
       console.log('Player', login, 'left from current room.');
-    });
-
-    socket.on('startGame', function () {
-      console.log('Game started!');
     });
   }
 }
