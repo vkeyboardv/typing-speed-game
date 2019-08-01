@@ -1,0 +1,27 @@
+<html>
+
+<head>
+  <title>Typing Speed Game | Lobby</title>
+  <link rel="stylesheet" href="styles/style.css" />
+  <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.dev.js"></script>
+  <script src="game.js"></script>
+</head>
+
+<body>
+  <h2><span id="header">Lobby</span> | Total connections: <span id="user"></span></h2>
+  <button id="localstorage-clear">Log Out</button>
+  <div id="winner">
+    Winner of the game: <span id="winner-name"></span>. Reload to join new game lobby.
+  </div>
+  <div id="timer-to-start">
+    Remember! This is bandit country. Let's give it to them, boy! The game starts in: <span id=to-seconds></span>
+  </div>
+  <p class='text-data'></p>
+  <hr>
+  <div id="results-table">
+    Scoreboard: <table id="table"></table>
+  </div>
+</body>
+
+</html>
